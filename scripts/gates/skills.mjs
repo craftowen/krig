@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { extractH2Sections, makeFinding, parseFrontmatter, parseOpenAiYaml } from './model.mjs';
 
 const REQUIRED_SKILL_SECTIONS = ['Goal', 'Routing Table', 'Workflow', 'Rules', 'Verification'];
@@ -15,9 +16,10 @@ function verifyCliSymlinkBehavior(scriptFile) {
     if (helpRun.status !== 0 || !helpRun.stdout.trim()) {
       return '심볼릭 링크 경로로 `--help` 실행 시 종료 코드 0과 사용법 출력이 나오지 않습니다.';
     }
+    const importUrl = pathToFileURL(scriptFile).href;
     const importRun = spawnSync(
       process.execPath,
-      ['--input-type=module', '-e', `await import(${JSON.stringify(scriptFile)});`, 'non-existent-argv1'],
+      ['--input-type=module', '-e', `await import(${JSON.stringify(importUrl)});`, 'non-existent-argv1'],
       { encoding: 'utf8' }
     );
     if (importRun.status !== 0 || importRun.stdout.trim() !== '') {
@@ -188,6 +190,57 @@ export function checkSkills(repoRoot) {
             code: 'BROKEN_CLI_ENTRYPOINT',
             message: failure,
             fix: 'isCliMain(import.meta.url) 진입 가드와 `--help` 종료 코드 0 처리를 구현하세요.'
+          }));
+        }
+      }
+    }
+  }
+
+  const pkgPath = path.join(repoRoot, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    let canonicalVersion = null;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      canonicalVersion = pkg.version;
+    } catch (err) {
+      findings.push(makeFinding({
+        gate: 'skills',
+        file: 'package.json',
+        code: 'INVALID_MANIFEST_JSON',
+        message: `매니페스트 JSON 파싱 실패: ${err.message}`,
+        fix: '유효한 JSON 문법으로 수정하세요.'
+      }));
+    }
+
+    if (canonicalVersion) {
+      const manifestRels = [
+        'plugin.json',
+        '.claude-plugin/plugin.json',
+        '.codex-plugin/plugin.json',
+        '.cursor-plugin/plugin.json',
+        'gemini-extension.json'
+      ];
+      for (const rel of manifestRels) {
+        const abs = path.join(repoRoot, rel);
+        if (!fs.existsSync(abs)) continue;
+        try {
+          const data = JSON.parse(fs.readFileSync(abs, 'utf8'));
+          if (data.version !== canonicalVersion) {
+            findings.push(makeFinding({
+              gate: 'skills',
+              file: rel,
+              code: 'MANIFEST_VERSION_MISMATCH',
+              message: `${rel}의 version(${data.version})이 package.json(${canonicalVersion})과 일치하지 않습니다.`,
+              fix: `${rel}의 version을 "${canonicalVersion}"으로 맞추세요.`
+            }));
+          }
+        } catch (err) {
+          findings.push(makeFinding({
+            gate: 'skills',
+            file: rel,
+            code: 'INVALID_MANIFEST_JSON',
+            message: `${rel} JSON 파싱 실패: ${err.message}`,
+            fix: '유효한 JSON 문법으로 수정하세요.'
           }));
         }
       }

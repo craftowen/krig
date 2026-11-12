@@ -6,11 +6,11 @@
 
 ## Steps
 
-1. **기준 커밋 및 감사 로그 초기화.** 후속 `demock`과 `verify`가 전체 변경 범위를 추적할 수 있도록 git 저장소라면 현재 `HEAD`를 `.krig/base-sha`에 기록하고, [decision-log.mjs](../scripts/decision-log.mjs)로 `.krig/decisions.tsv`를 초기화한다.
+1. **기준 커밋 및 감사 로그 초기화.** 후속 `demock`과 `verify`가 전체 변경 범위를 추적할 수 있도록 git 저장소이고 `.krig/base-sha`가 아직 없을 때 현재 `HEAD`를 `.krig/base-sha`에 기록하며(이전 세션에서 `resume`으로 이어받은 경우 기존 `.krig/base-sha` 보존), `.krig/design-spec.md`가 있으면 설계 기준서로 먼저 읽고 [decision-log.mjs](../scripts/decision-log.mjs)로 `.krig/decisions.tsv`를 초기화한다.
 
 ```bash
 mkdir -p .krig
-git rev-parse HEAD >.krig/base-sha 2>/dev/null || true
+[ -s .krig/base-sha ] || git rev-parse HEAD >.krig/base-sha 2>/dev/null || true
 node "<SKILL_DIR>/scripts/decision-log.mjs" init .krig/decisions.tsv
 ```
 

@@ -187,6 +187,24 @@ test('detects broken markdown symlinks, broken links, emoji bullets, forbidden p
   assert.ok(codes.includes('UNFINISHED_TODO'));
 });
 
+test('detects manifest version mismatch and malformed JSON across plugin manifests', (t) => {
+  const root = makeValidRepo(t);
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'krig', version: '0.2.0' }));
+  fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ name: 'krig', version: '0.2.0' }));
+  fs.writeFileSync(path.join(root, 'gemini-extension.json'), JSON.stringify({ name: 'krig', version: '0.1.0' }));
+  const codes = runAllGates(root, { routeTable: MINI_ROUTES }).map((f) => f.code);
+  assert.ok(codes.includes('MANIFEST_VERSION_MISMATCH'));
+
+  fs.writeFileSync(path.join(root, 'plugin.json'), '{ broken json ');
+  const badJsonCodes = runAllGates(root, { routeTable: MINI_ROUTES }).map((f) => f.code);
+  assert.ok(badJsonCodes.includes('INVALID_MANIFEST_JSON'));
+});
+
+test('krig repository itself passes runAllGates with zero findings across all 12 routes and manifests', () => {
+  const repoRoot = path.resolve(path.dirname(CHECK_CLI), '../..');
+  assert.deepEqual(runAllGates(repoRoot), []);
+});
+
 test('check.mjs CLI exits 2 on unknown flag or missing --root directory', () => {
   const badFlag = spawnSync(process.execPath, [CHECK_CLI, '--unknown-flag'], { encoding: 'utf8' });
   assert.equal(badFlag.status, 2);

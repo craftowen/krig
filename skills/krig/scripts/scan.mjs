@@ -1,305 +1,10 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { isCliMain, parseCliFlags } from './lib/cli.mjs';
+import { collectProductionFiles, isTestPath, JS_EXTS, lexSource } from './lib/source-lex.mjs';
 
-const JS_EXTS = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']);
-const CODE_EXTS = new Set([...JS_EXTS, '.py', '.rs', '.go']);
-const BUILD_OR_VCS_DIRS = new Set([
-  '.git', '.krig', 'node_modules', 'target', 'dist', 'build', 'coverage', '.venv', 'venv', '__pycache__'
-]);
-const TEST_DIRS = new Set(['test', 'tests', '__tests__', '__mocks__', 'fixtures', 'testdata']);
-const PROJECT_ROOT_MARKERS = ['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', '.git'];
-const REGEX_PRECEDING_KEYWORDS = new Set([
-  'return', 'throw', 'case', 'typeof', 'void', 'delete', 'in', 'of', 'instanceof', 'new', 'await', 'yield'
-]);
-
-function isProjectBoundary(dir) {
-  const resolved = path.resolve(dir);
-  if (
-    resolved === path.parse(resolved).root
-    || resolved === path.resolve(os.tmpdir())
-    || resolved === path.resolve(os.homedir())
-  ) {
-    return true;
-  }
-  return PROJECT_ROOT_MARKERS.some((marker) => fs.existsSync(path.join(resolved, marker)));
-}
-
-export function isTestPath(absFileOrDir, scanRoot = null) {
-  const abs = path.resolve(absFileOrDir);
-  const base = path.basename(abs);
-  if (
-    /\.(test|spec)\.[a-z0-9]+$/i.test(base)
-    || /^test_.*\.py$/i.test(base)
-    || /_test\.(py|go|rs)$/i.test(base)
-    || base === 'conftest.py'
-  ) {
-    return true;
-  }
-
-  let cur = abs;
-  const stopAt = scanRoot ? path.resolve(scanRoot) : null;
-  while (true) {
-    const seg = path.basename(cur);
-    if (TEST_DIRS.has(seg) || BUILD_OR_VCS_DIRS.has(seg)) return true;
-    if (stopAt && cur === stopAt) {
-      if (isProjectBoundary(cur)) break;
-    }
-    if (isProjectBoundary(cur)) break;
-    const parent = path.dirname(cur);
-    if (parent === cur) break;
-    cur = parent;
-  }
-  return false;
-}
-
-function collectProductionFiles(targetPath) {
-  const abs = path.resolve(targetPath);
-  if (!fs.existsSync(abs)) {
-    throw new Error(`스캔 대상 경로가 존재하지 않습니다: ${targetPath}`);
-  }
-  const stat = fs.statSync(abs);
-  if (stat.isFile()) {
-    if (!CODE_EXTS.has(path.extname(abs)) || isTestPath(abs)) return [];
-    return [{ root: path.dirname(abs), abs }];
-  }
-
-  if (isTestPath(abs)) return [];
-
-  const out = [];
-  function walk(dir) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (BUILD_OR_VCS_DIRS.has(entry.name) || TEST_DIRS.has(entry.name)) continue;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.isFile() && CODE_EXTS.has(path.extname(entry.name)) && !isTestPath(full, abs)) {
-        out.push({ root: abs, abs: full });
-      }
-    }
-  }
-  walk(abs);
-  return out.sort((a, b) => a.abs.localeCompare(b.abs));
-}
-
-function canStartJsRegex(prevTokenChar, prevWord) {
-  if (!prevTokenChar) return true;
-  if (prevTokenChar === '<') return false;
-  if ('(,=:[!&|?{};~^+-*%<>'.includes(prevTokenChar)) return true;
-  return REGEX_PRECEDING_KEYWORDS.has(prevWord);
-}
-
-function lexSource(content, ext) {
-  const isPy = ext === '.py';
-  const isJs = JS_EXTS.has(ext);
-  const allowLines = new Set();
-
-  const noCommentsOrStrings = [];
-  const noCommentsOrRegex = [];
-
-  let lineNo = 0;
-  let i = 0;
-  let prevTokenChar = '';
-  let prevWord = '';
-
-  function pushBoth(ch) {
-    noCommentsOrStrings.push(ch);
-    noCommentsOrRegex.push(ch);
-    if (ch === '\n') {
-      lineNo += 1;
-    } else if (!/\s/.test(ch)) {
-      prevTokenChar = ch;
-    }
-  }
-
-  function recordCommentText(commentStr, startLine) {
-    const parts = commentStr.split('\n');
-    for (let offset = 0; offset < parts.length; offset += 1) {
-      if (/demock:\s*allow/i.test(parts[offset])) {
-        allowLines.add(startLine + offset);
-      }
-    }
-  }
-
-  while (i < content.length) {
-    const ch = content[i];
-    const next = content[i + 1] ?? '';
-    const next2 = content[i + 2] ?? '';
-
-    if (ch === '\r') {
-      i += 1;
-      continue;
-    }
-
-    if (ch === '\n') {
-      pushBoth('\n');
-      i += 1;
-      continue;
-    }
-
-    // Python # line comment
-    if (isPy && ch === '#') {
-      const start = i;
-      const startLine = lineNo;
-      while (i < content.length && content[i] !== '\n' && content[i] !== '\r') i += 1;
-      recordCommentText(content.slice(start, i), startLine);
-      continue;
-    }
-
-    // C-style // line comment
-    if (!isPy && ch === '/' && next === '/') {
-      const start = i;
-      const startLine = lineNo;
-      while (i < content.length && content[i] !== '\n' && content[i] !== '\r') i += 1;
-      recordCommentText(content.slice(start, i), startLine);
-      continue;
-    }
-
-    // C-style /* ... */ block comment
-    if (!isPy && ch === '/' && next === '*') {
-      const start = i;
-      const startLine = lineNo;
-      i += 2;
-      while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) {
-        if (content[i] === '\n') {
-          noCommentsOrStrings.push('\n');
-          noCommentsOrRegex.push('\n');
-          lineNo += 1;
-        } else if (content[i] !== '\r') {
-          noCommentsOrStrings.push(' ');
-          noCommentsOrRegex.push(' ');
-        }
-        i += 1;
-      }
-      const end = Math.min(content.length, i + 2);
-      recordCommentText(content.slice(start, end).replace(/\r/g, ''), startLine);
-      i = end;
-      continue;
-    }
-
-    // Python triple-quoted string / docstring
-    if (isPy && ((ch === '"' && next === '"' && next2 === '"') || (ch === "'" && next === "'" && next2 === "'"))) {
-      const quote = ch;
-      noCommentsOrStrings.push(quote, quote);
-      noCommentsOrRegex.push(quote, quote);
-      i += 3;
-      while (i < content.length && !(content[i] === quote && content[i + 1] === quote && content[i + 2] === quote)) {
-        if (content[i] === '\\' && i + 1 < content.length && content[i + 1] !== '\n') {
-          i += 2;
-          continue;
-        }
-        if (content[i] === '\n') {
-          noCommentsOrStrings.push('\n');
-          noCommentsOrRegex.push('\n');
-          lineNo += 1;
-        }
-        i += 1;
-      }
-      i = Math.min(content.length, i + 3);
-      prevTokenChar = quote;
-      prevWord = '';
-      continue;
-    }
-
-    // Single, double, or backtick string literal
-    if (ch === '"' || ch === "'" || (isJs && ch === '`')) {
-      const quote = ch;
-      noCommentsOrStrings.push(quote);
-      noCommentsOrRegex.push(quote);
-      i += 1;
-      while (i < content.length && content[i] !== quote) {
-        if (content[i] === '\\' && i + 1 < content.length) {
-          const esc = content[i + 1];
-          if (esc === '\n') {
-            noCommentsOrStrings.push('\n');
-            noCommentsOrRegex.push('\n');
-            lineNo += 1;
-          } else {
-            noCommentsOrRegex.push(' ', ' ');
-          }
-          i += 2;
-          continue;
-        }
-        if (content[i] === '\n') {
-          if (quote !== '`') break;
-          noCommentsOrStrings.push('\n');
-          noCommentsOrRegex.push('\n');
-          lineNo += 1;
-        } else if (content[i] !== '\r') {
-          noCommentsOrRegex.push(content[i]);
-        }
-        i += 1;
-      }
-      if (i < content.length && content[i] === quote) {
-        noCommentsOrStrings.push(quote);
-        noCommentsOrRegex.push(quote);
-        i += 1;
-      }
-      prevTokenChar = quote;
-      prevWord = '';
-      continue;
-    }
-
-    // JS/TS regex literal /.../flags
-    if (isJs && ch === '/' && next !== '/' && next !== '*' && canStartJsRegex(prevTokenChar, prevWord)) {
-      let j = i + 1;
-      let inCharClass = false;
-      let validRegex = false;
-      while (j < content.length) {
-        const rc = content[j];
-        if (rc === '\n' || rc === '\r') break;
-        if (rc === '\\') {
-          j += 2;
-          continue;
-        }
-        if (rc === '[') inCharClass = true;
-        else if (rc === ']') inCharClass = false;
-        else if (rc === '/' && !inCharClass) {
-          validRegex = true;
-          j += 1;
-          while (j < content.length && /[a-z]/i.test(content[j])) j += 1;
-          break;
-        }
-        j += 1;
-      }
-      if (validRegex) {
-        noCommentsOrStrings.push('/', ' ', '/');
-        noCommentsOrRegex.push('/', ' ', '/');
-        i = j;
-        prevTokenChar = '/';
-        prevWord = '';
-        continue;
-      }
-    }
-
-    // Identifier / keyword tracking for JS regex disambiguation
-    if (/[A-Za-z_$]/.test(ch)) {
-      let j = i + 1;
-      while (j < content.length && /[A-Za-z0-9_$]/.test(content[j])) j += 1;
-      const word = content.slice(i, j);
-      for (const wc of word) {
-        noCommentsOrStrings.push(wc);
-        noCommentsOrRegex.push(wc);
-      }
-      prevWord = word;
-      prevTokenChar = word[word.length - 1];
-      i = j;
-      continue;
-    }
-
-    prevWord = '';
-    pushBoth(ch);
-    i += 1;
-  }
-
-  return {
-    allowLines,
-    cleanLines: noCommentsOrStrings.join('').split('\n'),
-    stringKeptLines: noCommentsOrRegex.join('').split('\n')
-  };
-}
+export { isTestPath };
 
 function hasRangeAllow(allowLines, startLine, endLine) {
   const from = Math.max(0, startLine - 1);
@@ -346,7 +51,6 @@ function isPythonAbstractMethodRaise(rawLines, cleanLines, raiseIdx) {
 
   if (defIdx === -1) return false;
 
-  // Check there are no executable statements after raise inside the same def
   for (let k = raiseIdx + 1; k < cleanLines.length; k += 1) {
     const cleanTrim = cleanLines[k].trim();
     if (!cleanTrim) continue;
@@ -355,7 +59,6 @@ function isPythonAbstractMethodRaise(rawLines, cleanLines, raiseIdx) {
     return false;
   }
 
-  // Either decorated with @abstractmethod or indented inside a class definition
   if (defIndent > 0) return true;
   for (let k = defIdx - 1; k >= Math.max(0, defIdx - 5); k -= 1) {
     const cleanTrim = cleanLines[k].trim();
@@ -443,7 +146,6 @@ export function scanFileContent(relFile, content) {
       });
     }
 
-    // Single-line and multi-line permissive-guard
     let nextNonEmptyIdx = i + 1;
     while (nextNonEmptyIdx < cleanLines.length && !cleanLines[nextNonEmptyIdx].trim()) {
       nextNonEmptyIdx += 1;
@@ -566,7 +268,7 @@ export function scanTargets(targets) {
 }
 
 function printHelp() {
-  console.log('사용법: node scan.mjs [--json] [<경로...>] (종료 코드: 0=후보 없음, 3=후보 발견, 2=실행 오류)');
+  console.log('사용법: node scan.mjs [--json] [--repo <경로>] [<경로...>] (종료 코드: 0=후보 없음, 3=후보 발견, 2=실행 오류)');
 }
 
 function main() {
@@ -574,7 +276,7 @@ function main() {
   try {
     parsed = parseCliFlags(process.argv.slice(2), {
       booleans: ['json', 'help'],
-      allowedFlags: ['json']
+      allowedFlags: ['json', 'repo']
     });
   } catch (err) {
     console.error(err.message);
@@ -586,7 +288,9 @@ function main() {
     process.exit(0);
   }
 
-  const effectiveTargets = parsed.positional.length > 0 ? parsed.positional : [process.cwd()];
+  const effectiveTargets = parsed.positional.length > 0
+    ? parsed.positional
+    : [parsed.flags.repo ?? process.cwd()];
 
   try {
     const result = scanTargets(effectiveTargets);

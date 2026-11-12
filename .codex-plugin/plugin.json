@@ -1,6 +1,6 @@
 {
   "name": "krig",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Single-entrypoint auto-routing engineering rig (/krig) for Claude Code, Codex CLI, and Antigravity.",
   "author": {
     "name": "craftowen",
@@ -14,7 +14,7 @@
   "interface": {
     "displayName": "Krig",
     "shortDescription": "Single-entrypoint auto-routing engineering rig (/krig)",
-    "longDescription": "Combines pre-deletion alignment, deep module design, scientific single-variable loops, production demock scanning, dual-axis verification, and structural v0 backprop behind one /krig command.",
+    "longDescription": "Combines pre-deletion alignment, codebase lineage/blast recon, deep module design, bounded state-model checking, scientific single-variable loops, production demock scanning, dual-axis verification, bloat/debt auditing, session recovery, ship freshness gates, blinded A/B evaluation, and structural v0 backprop behind one /krig command.",
     "developerName": "craftowen",
     "category": "Productivity",
     "capabilities": ["Skills"],

@@ -89,15 +89,9 @@ function printHelp() {
 }
 
 function main() {
-  const [subcmd, ...rest] = process.argv.slice(2);
-  if (!subcmd || subcmd === '--help' || subcmd === '-h') {
-    printHelp();
-    process.exit(0);
-  }
-
   let parsed;
   try {
-    parsed = parseCliFlags(rest, {
+    parsed = parseCliFlags(process.argv.slice(2), {
       booleans: ['json', 'help', 'write', 'allow-host-specific'],
       allowedFlags: ['json', 'write', 'allow-host-specific', 'level', 'text', 'target']
     });
@@ -106,7 +100,8 @@ function main() {
     process.exit(2);
   }
 
-  if (parsed.flags.help) {
+  const subcmd = parsed.positional[0];
+  if (!subcmd || parsed.flags.help) {
     printHelp();
     process.exit(0);
   }
@@ -130,16 +125,23 @@ function main() {
     }
 
     if (subcmd === 'reflow') {
-      const target = parsed.positional[0];
+      const target = parsed.positional[1];
       if (!target) {
         console.error('마크다운 파일 경로가 필요합니다.');
         process.exit(2);
       }
       const original = fs.readFileSync(target, 'utf8');
       const updated = reflowMarkdown(original);
+      const changed = updated !== original;
       if (parsed.flags.write) {
         fs.writeFileSync(target, updated, 'utf8');
-        console.log(`정리 완료: ${target}`);
+        if (parsed.flags.json) {
+          console.log(JSON.stringify({ target, changed, written: true }, null, 2));
+        } else {
+          console.log(`정리 완료: ${target}`);
+        }
+      } else if (parsed.flags.json) {
+        console.log(JSON.stringify({ target, changed, written: false, content: updated }, null, 2));
       } else {
         process.stdout.write(updated);
       }

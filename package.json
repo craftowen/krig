@@ -1,6 +1,6 @@
 {
   "name": "krig",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "license": "MIT",
   "description": "Single-entrypoint auto-routing engineering rig (/krig) for Claude Code, Codex CLI, and Antigravity.",
@@ -28,7 +28,8 @@
   ],
   "scripts": {
     "check": "node scripts/gates/check.mjs",
-    "test": "node --test"
+    "test": "node --test scripts/gates/check.test.mjs skills/krig/scripts/tools.test.mjs benchmarks/harness.test.mjs",
+    "bench": "node benchmarks/harness.mjs"
   },
   "engines": {
     "node": ">=20"

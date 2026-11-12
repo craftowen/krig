@@ -1,6 +1,6 @@
 {
   "name": "krig",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Single-entrypoint auto-routing engineering rig (/krig) for Claude Code, Codex CLI, and Antigravity.",
   "author": {
     "name": "craftowen",

@@ -52,7 +52,17 @@ export function parseCliFlags(argv, options = {}) {
         continue;
       }
       const next = argv[i + 1];
-      if (next === undefined || (next.startsWith('-') && next !== '-')) {
+      const nextLooksLikeKnownFlag = typeof next === 'string' && (
+        next === '--'
+        || next === '-h'
+        || next === '--help'
+        || (
+          next.startsWith('--')
+          && allowed
+          && allowed.has(next.includes('=') ? next.slice(2, next.indexOf('=')) : next.slice(2))
+        )
+      );
+      if (next === undefined || nextLooksLikeKnownFlag) {
         throw new Error(`옵션 --${key} 에 값이 필요합니다.`);
       }
       flags[key] = next;

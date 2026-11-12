@@ -129,15 +129,9 @@ function printHelp() {
 }
 
 function main() {
-  const [subcmd, ...rest] = process.argv.slice(2);
-  if (!subcmd || subcmd === '--help' || subcmd === '-h') {
-    printHelp();
-    process.exit(0);
-  }
-
   let parsed;
   try {
-    parsed = parseCliFlags(rest, {
+    parsed = parseCliFlags(process.argv.slice(2), {
       booleans: ['json', 'help'],
       allowedFlags: ['json', 'route', 'step', 'hypothesis', 'action', 'evidence', 'verdict', 'commit', 'ts', 'repo']
     });
@@ -146,12 +140,13 @@ function main() {
     process.exit(2);
   }
 
-  if (parsed.flags.help) {
+  const subcmd = parsed.positional[0];
+  if (!subcmd || parsed.flags.help) {
     printHelp();
     process.exit(0);
   }
 
-  const tsvPath = parsed.positional[0];
+  const tsvPath = parsed.positional[1];
   if (!tsvPath) {
     console.error('TSV 파일 경로가 필요합니다.');
     process.exit(2);

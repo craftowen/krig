@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "krig",
-      "description": "Auto-routes /krig into align, design, drive, demock, verify, and backprop playbooks with deterministic verification levers.",
+      "description": "Auto-routes /krig into 12 lazy-loaded playbooks (align, recon, design, model, drive, demock, verify, slim, resume, ship, eval, backprop) with deterministic CLI verification levers.",
       "source": "./",
       "category": "productivity"
     }

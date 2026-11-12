@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "krig",
+  "description": "Single-entrypoint auto-routing engineering rig (/krig) combining pre-deletion alignment, deep module design, scientific loops, production demock, dual-axis verification, and structural backprop.",
+  "owner": {
+    "name": "craftowen",
+    "url": "https://github.com/craftowen"
+  },
+  "plugins": [
+    {
+      "name": "krig",
+      "description": "Auto-routes /krig into align, design, drive, demock, verify, and backprop playbooks with deterministic verification levers.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

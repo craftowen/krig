@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "krig",
+  "version": "0.1.0",
+  "description": "Single-entrypoint auto-routing engineering rig (/krig) combining pre-deletion alignment, deep module design, scientific loops, production demock, dual-axis verification, and structural backprop.",
+  "author": {
+    "name": "craftowen",
+    "url": "https://github.com/craftowen"
+  },
+  "homepage": "https://github.com/craftowen/krig",
+  "repository": "https://github.com/craftowen/krig",
+  "license": "MIT",
+  "logo": "assets/icon.png",
+  "keywords": [
+    "krig",
+    "workflow",
+    "router",
+    "verification",
+    "deep-modules",
+    "backprop"
+  ]
+}

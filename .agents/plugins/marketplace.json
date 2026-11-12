@@ -1,0 +1,21 @@
+{
+  "name": "krig",
+  "interface": {
+    "displayName": "Krig"
+  },
+  "plugins": [
+    {
+      "name": "krig",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/craftowen/krig.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "krig",
+  "version": "0.1.0",
+  "description": "Single-entrypoint auto-routing engineering rig (/krig) for Claude Code, Codex CLI, and Antigravity.",
+  "author": {
+    "name": "craftowen",
+    "url": "https://github.com/craftowen"
+  },
+  "homepage": "https://github.com/craftowen/krig",
+  "repository": "https://github.com/craftowen/krig",
+  "license": "MIT",
+  "keywords": ["krig", "workflow", "router", "verification", "deep-modules", "backprop"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Krig",
+    "shortDescription": "Single-entrypoint auto-routing engineering rig (/krig)",
+    "longDescription": "Combines pre-deletion alignment, deep module design, scientific single-variable loops, production demock scanning, dual-axis verification, and structural v0 backprop behind one /krig command.",
+    "developerName": "craftowen",
+    "category": "Productivity",
+    "capabilities": ["Skills"],
+    "websiteURL": "https://github.com/craftowen/krig",
+    "defaultPrompt": [
+      "Run /krig to scope, design, implement, and verify this task.",
+      "Run /krig route:demock to scan production paths for fake success or swallowed errors.",
+      "Run /krig route:verify for dual-axis code and spec review."
+    ],
+    "brandColor": "#0f172a",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
+  }
+}

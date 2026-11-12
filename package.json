@@ -1,0 +1,36 @@
+{
+  "name": "krig",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Single-entrypoint auto-routing engineering rig (/krig) for Claude Code, Codex CLI, and Antigravity.",
+  "author": {
+    "name": "craftowen",
+    "url": "https://github.com/craftowen"
+  },
+  "homepage": "https://github.com/craftowen/krig#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/craftowen/krig.git"
+  },
+  "bugs": {
+    "url": "https://github.com/craftowen/krig/issues"
+  },
+  "keywords": [
+    "krig",
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "antigravity",
+    "agent-skills",
+    "workflow",
+    "verification"
+  ],
+  "scripts": {
+    "check": "node scripts/gates/check.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "krig",
+  "version": "0.1.0",
+  "description": "Single-entrypoint auto-routing engineering rig (/krig) for Claude Code, Codex CLI, and Antigravity.",
+  "author": {
+    "name": "craftowen",
+    "url": "https://github.com/craftowen"
+  },
+  "homepage": "https://github.com/craftowen/krig",
+  "repository": "https://github.com/craftowen/krig",
+  "license": "MIT"
+}
